@@ -1,0 +1,194 @@
+\subsection{4-11}
+
+%only 1 page worth explaining.
+
+\begin{align}
+v(s) &= \E(R+\ga v(s'))\\
+&=R+\ga \sum_{s'} P_{ss'} v(s')\\
+v_\pi(s) &= R^\pi(s) + \ga \sum_{s'} P_{ss'}^\pi v_\pi(s')\\
+Q(s,a) &= \E(R+\ga Q(s',a')|s,a)\\
+Q_\pi(s,a) &= \E(R+\ga \max_{a'\in A}Q(s',a')|s,a)\\
+v_t(s) &= \E(R+\ga \max_a \sum Q_*(s',a)|s).
+\end{align}
+We are trying to solve the Bellman equation, in two different contexts:
+\begin{enumerate}
+\item
+Dynamic programming (model-based): The simplest iterative methods for solving these equations are the following
+
+Iterative Policy Evaluation:
+\begin{align}
+v(s)&\mapsfrom \E(R+\ga v(s')|s)\\
+v_{k+1}(s)&=R(s) + \ga \sum_{s'} v_k(s') P_{ss'}
+\end{align}
+
+Q Policy iteration: %Q-value iteration
+\begin{align}
+Q(s,a) &\mapsfrom \E(R+\ga Q(s',a')|s,a)\\
+(Q_{k+1}(s,a) &=R(s,a) + \ga \sum_{s',a'} P_{s,s'}^a Q_k(s',a'))\\
+Q_{k+1}(s,a)&=\E(R+\ga \max_{a'} Q_k(s',a')|s,a)
+\end{align}
+%sum over all possible outcomes
+\item
+Model-free: Sample the outcomes
+\begin{align}
+v_{k+1}(s) &= R(s) + \ga v_k(S_{t+1})\\
+Q_{k+1}(s,a) &= R(s,a) + \ga Q_k(s_{t+1},a_{t+1})\\
+Q_{k+1}^*(s,a) &= R(s,a) + \ga \max_{a'} Q_k^*(s_{t+1},a)\\
+\text{or }
+Q_{k+1}(s,a)&=\al\pa{\E(R+\ga \max_{a'} Q_k^*(s_{t+1},a')|s,a)}+(1-\al)Q_k^*(s,a).
+\end{align}
+If $\al=1$ this may not converge. $\al$ is the relaxation parameter.
+(This is classical. One of the classical methods is overrelaxation, when $\al\nin [0,1]$.)
+%This is one of the simplest 
+\end{enumerate}
+Question: Do you consider AlphaGo model-based or model-free?
+
+Those are simple methods. Next time we'll talk about more sophisticated methods: Actor-critic, policy gradient.
+
+First we'll consider the continuous analogue.
+Last time we derived
+\begin{align}
+\ga v_*(x) &= H(x,\nb v_x)
+\end{align}
+This is a first order scalar nonlinear PDE.
+\begin{align}
+\label{e:h-max}
+H(x,p) &= \max_a\bc{R(x,a) + f(x,a) p}\\
+Q_\pi(x,a) &= R(x,a) + R(x,\pi(x)) + (f(x,a) - f(x,\pi(x))) \nb v_\pi(x).
+\end{align}
+%prelim exam with PDE
+You can solve this by 
+\begin{enumerate}
+\item
+the method of characteristics
+\item
+and the maximal principle (Pontryagin) in control theory
+\item
+variational formulation
+\end{enumerate}
+They're all the same thing, in different forms. The equation was defined by a variational formulation.
+
+I'll discuss how to solve the cleaner problem (Hamilton-Jacobi equation).
+\begin{align}
+\pl_t u+ H(x,\nb u)&=0\\
+u(x,0) &=u_0(x).
+\end{align}
+The variational formulation is  (least action principle in mechanics)
+\begin{align}\label{e:uzt}
+u(z,t) &= \inf_{x(0)=y, x(t)=z} \bc{u_0(y) + \int_0^t L(x(s), \dot x(s))\,ds},
+\end{align}
+%$x(0)=y$, $x(t)=z$, 
+where $L$ is the Lagrangian. 
+\begin{align}
+L(x,\dot x) &= \sup_p(\dot x p - H(x,p))\\
+H(x,p) &= \sup_{\dot x}(p\dot x- L(x,\dot x))
+\end{align}
+Usually we start with a Lagrangian; Hamilton-Jacobi theory says that $u$ satisfies the Hamilton-Jacobi equation. Here we go backward from the HJ equation to derive the least action principle in mechanics and define the Hamiltonian.
+
+Look at all the path going backwards and calculate the action; that gives the solution.
+
+In principle there should not be exponential dependence for calculating the value at one point $(z,t)$. This is an ODE problem. 
+
+Write down the Euler-Lagrange equation, that's the method of characteristics. Pontrayagin maximal principle is more general. 
+%$\dd zt = f(z,\pi(z))$.
+$a$ is dual to $p$, $\dot x$ is dual to $p$.
+In RL, $\dot x(s)$ can be discrete; equation~\eqref{e:h-max} still works. 
+
+In my view the simplest way to solve~\eqref{e:h-max} is to pick a sample point and compute the solution by solving~\eqref{e:uzt}, and parameterize your policy using deep learning.
+%page 1 vs. page 15.
+The algorithm discussed is Jacobi method; this is at least as good as conjugate gradient. 
+%Gauss and Jacobi method
+
+If you want to solve $Ax=b$, write $A$ as $D+(L+U)$ and iterate: 
+\begin{align}
+(D+(L+U))x&=b\\
+Dx_{k+1} &= (L+U) x_k + b.
+\end{align}
+
+A simple situation: what if $H$ is independent of $x$?
+\begin{align}
+H(x,p) &= H(p) 
+\end{align}
+For example, in classical mechanics this is $\rc 2 |p|^2$. (Classical mechanics without a force.) Then in~\eqref{e:uzt}, the integral becomes
+\begin{align}
+\int_0^t L(\dot x(s))\,ds.
+\end{align}
+The solution is $x(s) = y+s \fc{z-y}t$, $\dot x(s) = \fc{z-y}t$. The solution is 
+\begin{align}
+u(z,t) &= \inf_y \bc{u_0(y)+tL\pf{z-y}t}.
+\end{align}
+This is Huygen's principle.
+
+To solve the problem there are 2 ideas.
+\begin{enumerate}
+\item
+Indirect method (method of characteristics). Solve
+\begin{align}
+\dd zt &= \nb_pH\\
+\dd pt &= -\nb_xH\\
+x(0) &=z\\
+p(0) &=\nb u_0(y)
+\end{align}
+Usually the method of characteristics goes forward. The variational formulation goes backwards, look at all the paths which reach $(z,t)$.
+
+\eqref{e:uzt} is a boundary value problem; the indirect method is an initial value problem. 
+Use a ``shooting method". Iteratively try different values of $y$ to try to end up at $(z,t)$. 
+\item
+The direct method is to solve the variational problem.
+\end{enumerate}
+In both cases I need to discuss 2 problems: how to discretize, and how to accelerate convergence.
+
+To discretize, use finite element methods, spectral methods, pseudo-spectral methods, or collocation methods. 
+
+Spectral element method: divide into intervals, apprxomate on each with polynomial. A vector function of 1 variable, no curse of dimensionality. If the interval is large, convergence is slow. It's too far to shoot, especially when the time horizon is infinite. 
+The idea is to do parallel shooting. Divide into smaller intervals. Target in between is to make sure trajectory is continuous and differentiable. 
+
+The second idea which is not implemented seriously is to use multigrid. 
+%Qianxiao tried to train deep NN. Some good results, don't publish?
+%More general app is control theory.
+
+For model-free there's not much you can do, observe data coming in. You won't do better than Monte Carlo. The biggest obstacle is that it's not as good because the data is correlated.  If it's model-based there's a lot more one can do. The room for improvement is in the model-based.
+
+AlphaGo is model-free (?). In principle we can make Go model-based. %, by assigning a specific strategy.
+Backgammon: use supervised learning to learn moves, give to opponent.
+
+The room is in model-based; develop simulation platforms. If you don't have simulation platforms... I don't think investment is a good example, if you just wait for data to come in, it's not efficient. You need to model and simulate the market. 
+
+Since we can make Go model-based, can we do better than AlphaGo? Model-free is easy, just use Jacobi. Is there room to improve with a model?
+
+%strategy for opponent is last iteration.
+%if someone from Mars play AlphaGo
+The RL community is heavily model-free. 
+
+%protein folding
+Policy-gradient method: Policy-gradient theorem. It's like the Hellman-Feynman theorem.
+
+We want to compute $\fc{\de v_\pi(x)}{\de \pi}$, to maximize $\max_\pi v_\pi(x)$. 
+\begin{align}
+v_\pi &= \int_0^\iy e^{-\ga t} R(z_\pi(t),\pi(z_\pi(t)))\,dt
+\end{align}
+Taking the gradient, the dependence on $z$ vanishes. We have $\pa{\nb_z R + \nb_u R\nb_z\pi}\fc{\de z_\pi}{\de\pi}$.
+%randomness average things out
+ 
+Pontryagin maximal principle:
+\begin{align}
+\dd xt &= f(x,u) \\
+\dd pt &= -\nb_x H\\
+& \inf_{x(0)=y, x(t)=x} \bc{u_0 (y) + \int_0^t L(x,\dot x, u)\,dx}\\
+H(x,p,u) &= \sup\{p \dot x- L(x,\dot x, u)\}\\
+x(t)&=x\\
+p(0)&=-\nb u_0(x(0)).
+\end{align} %conjugate equations
+The action is given by this maximal principle
+\begin{align}
+u(s) &= \amax_u H(x(s),p(s),u)
+\end{align}
+This maximization is done independently for each time.
+Naively, you do the following iteration; solve the adjoint system
+\begin{align}
+\dot x_{k+1}&= f(x_{k+1},u_k)\\
+\dot p_{k+1}&= \nb_x H(x_{k+1},p_{k+1},u_k)\\
+0\le s\le t\quad
+u_{k+1}(s) &=\amax_u H(x_{k+1}(s), p_{k+1}(s),u)
+\end{align}
+This is MSA, method of successive approximation. This is the basic idea; you can use shooting, multigrid,  introduce relaxation, etc.

@@ -1,0 +1,294 @@
+\chapter{Reinforcement learning}
+
+For the rest of the weeks, we'll cover the 10 lectures in David Silver's course on reinforcement learning (compressed). Questions:
+\begin{enumerate}
+\item
+What happens in continuous time? Things simplify.
+\item
+Math results that have been proved. Q-learning, policy gradient, value iteration
+\item What happens when the state space is huge? Ex. sophisticated exploration techniques like Monte Carlo.
+\item
+The formulation has a well-defined reward function and discount factor. This is not necessarily the right formulation for decision-making problems. Optimal decision-making is the ultimate goal. But everything is about the limited formulation.
+%
+\end{enumerate}
+Understand the SoTA for situations for situations for which the state-space (and maybe action space) is high-dimensional, and understand what's known mathematically.
+
+
+%compress
+%1. what happens in continuous time? Things simplify.
+%2. math results that have been proved. Q-learning, policy gradient, value iteration
+%3. What happens when the state space is huge? Ex. sophisticated exploration techniques like 
+%SoTA for situations for situations for which the state-space (and maybe action space) is high-dimensional, and understand what's known mathematically.
+
+\section{2019-4-4 Introduction}
+I'll start with the most important topic: what are good examples?
+\begin{enumerate}
+\item
+Flying stunts (see Andrew Ng on flying a drone). 
+As someone with a background in modeling physical system, I'd write down a PDE, how the turbines interact wth the flows, how to control the turbines so that it flies. 
+If you learn how to ride a bike, I'd model the details of how it interacts with the surface.
+
+But we never thinik about the detailed interactions; I just try it; if I'm about to fall I change. I'm going through a model-free reinforcement learning procedure.
+\item
+Games. This is a good example.
+\item
+Investment portfolio. I'm not convinced. The main difference from a supervised learning problem is a time lag (I don't have iid examples; it's a dynamical system, I apply actions and later I get a reward). Aside from this there's no difference.
+%\{x_j,y_j\}$
+
+Suppose you want to liquidate a huge amount of stock. If you sell it immediately, then you impact the market a lot. %In practice, how do you model or observe that?
+\item
+Control of power station
+\item
+Robot
+\end{enumerate}
+I'd like to see more convincing examples. It's not convincing that it has caused such a big spectacle in China and the US.
+
+How do we come up with good really convincing examples of reinforcement learning?
+
+We're working for the cause of RL. It has to be compelling enough for us to spend time on. 
+
+David Silver uses the terminology
+\begin{itemize}
+\item
+RL for model-free learning
+\item
+planning for model-based learning.
+\end{itemize}
+We have a dynamical system with control, and assume it's a fully observed system, which means both the environment and the system we're interested in is fully observed (Markov model).
+
+We could also assume a partially observed system. This is a hidden Markov model.
+
+Find the simplest setting where all the critical issues are present: high-dimensionality, etc. I will work with deterministic continuous dynamical systems, for which everything can be written as PDE's. 
+
+%if you do the lecture you would not be critical enough. Being critical is most important aspect of the course.
+%This is the beginning of the whole subject. Nothing written on paper is written on stone.
+
+\subsection{Discrete setting}
+
+We need to discuss Markov process, Markov reward process, and Markov decision process.
+\begin{enumerate}
+\item
+Markov process: $(S,P)$ where $S$ is state space and $P$ is transition probabilities. $P_{ss'} = P(S_{t+1}=s'|S_t=s)$.
+%fin state MC
+\item
+Markov reward process: $(S,P,R,\ga)$ where $R_{t+1}$ is a random variable of reward at time $t+1$ (depends on $S_t$)
+
+The total return is $G_t=R_{t+1}+\ga R_{t+2}+\ga^2R_{t+3}+\cdots$.
+
+The reward of state $s$ is $R_s=\E[R_{t+1}|S_t=s]$.
+
+This framework assumes you know the reward.
+
+(Riding a bike: don't need to know details of whole process. The policy function in stored in our brain.)
+
+The value function is 
+\begin{align}
+v(S) &= \E[G_t|S_t=s]\\
+&=\E[R_{t+1}+\ga R_{t+1}+\ga^2 R_{t+3}+\cdots|S_t=s]\\
+&=\E[R_{t+1}+\ga v(S_{t+1})|S_t=s]\\
+&=\E[R_{t+1}|S_t=s] + \ga \E[v(S_{t+1})|S_t=1]\\
+&=R_s + \ga \sum_{s'}P_{ss'}v(s')
+\end{align}
+The Bellman equation follows from the Markovian property. We can write this as 
+$(I-\ga P)v = R$; solving this linear system gives $w=(I-\ga P)^{-1}R$. Doing the iteration
+\begin{align}
+v_{k+1}(s)&=R_s + \ga \sum P_{ss'}v_k(s')
+\end{align}
+this converges with error $\ve{e_{k+1}}\le \ga\ve{e_k}$ for $\ga<1$. 
+\item Markov decision process: $(S,A,P,R,\ga)$ where the outcome depends on the action. We now have $P_{ss'}^a = \Pj(S_{t+1}=s|S_t=s,A_t=a)$ %We have a parameter family. 
+and $R_s^a = \E[R_{t+1}|S_t=s,A_t=a]$. 
+
+The policy is $\pi(a|s) = \Pj(A_t=a|s_t=s)$. This describes the behavior of agents.
+
+We can define 
+\begin{align}
+P_{ss'}^\pi &= \sum_a\pi(a|s) P_{ss'}^a\\
+R_s^\pi &=\sum_a \pi(a|s) R_s^a\\
+v_\pi(s) &= \EE_\pi [G_t|S_t=s]\\
+%s, a, then \pi
+q_\pi(s,a) &= \EE_\pi[G_t|S_t=s,A_t=a]
+\end{align}
+The $q$ function is the value at state $s$, taking action $a$, and then following $\pi$. (From $t+1$ onwards, follow $\pi$.) We derive (linear) Bellman equations:
+\begin{align}
+v_\pi(s) &= \sum_a \pi(a|s)q_\pi(s,a)\\
+v_\pi(s) &= R_s^\pi + \ga\sum_{s'} P_{ss'}^\pi v_\pi(s')\\
+q_{\pi}(s,a) &= R_\pi^a + \ga \sum_{s'} P_{ss'}^\pi v_\pi(s')\\
+q_\pi(s,a) &= R_s^a + \ga\sum_{s'} P_{ss'}^a \sum_{a'} \pi(a'|s')q_\pi(s',a')
+\end{align}
+%stochastic control?
+%playing chess
+%optimal is deterministic
+%in practice, when play games
+%unique nash equilibrium is probabilistic
+\footnote{
+There is a deterministic optimal policy. But in practice, when we play games, often we follow a probabilistic policy. 
+
+Related? Nash equilibrium is a mixed strategy (but this does not fall into this framework---how to modify so it does?).
+}
+%max value function for each and every state.
+\end{enumerate}
+When I say ``optimal policy" I'm assuming there exists a policy with which the value function for all the states is maximized. It can be shown that an optimal policy does exist. It exists by dynamic programming. 
+You can define a partial order in the space of policies, it has a maximum.
+%In principle, the argmax 
+%pi could depend on s
+\begin{align}
+v_*(s) &= \max_\pi v_\pi(s) = \max_{(\pi,a)}q_\pi(s,a)\\
+q_*(s,a) &= \max_\pi q_\pi(s,a)
+\end{align}
+$\pi^*(a|s)$ is supported on $\amax q_*(s,a)$. If it's unique, we must have $\pi_*(a|s) = \begin{cases}
+1,&a=\amax_a q_*(s,a)\\
+0,&\text{else}
+\end{cases}.
+$
+The way we find optimal policies is to do this operation.
+
+I write down Bellman equations for the optimal policy. 
+\begin{align}
+v_*(s) &= \max_a \pa{R_s^a + \ga \sum_{s'} P_{ss'}^a v_*(s')}\\
+q_*(s,a) &=R_s^a + \ga \sum_{s'}P_{ss'}^a \max_{a'}q_*(s',a').
+\end{align}
+How to solve this? Note that in the $q$ function $R_s^a$ is out of the max; this is another reason why the $q$ function is useful.
+
+Once we solve this, the optimal policy is given by the argmax of $q_*$.
+
+Obvious methods to solve: policy iteration (do maximization at each step). This can be proven to converge. The problem is that if the state space is so large that you cannot even do one iteration; you have to do Monte Carlo sampling. This is the situation we're interested in.
+
+\subsection{Continuous setting}
+
+I want to discuss the ODE setting, and derive the Hamiltonian-Jacobi-Bellman equations in this setting. In the continuous setting, a Markov process is an ODE, $z(0)=x$, $\dd zt = f(z)$. For a Markov reward process, cumulative reward is
+\begin{align}
+v(x) &=\int_0^\iy e^{-\ga t} R(z(t))\,dt\\
+v(z(t)) &= \int_t^\iy e^{-\ga(s-t)} R(z(s))\,ds
+\end{align}
+Differentiating,
+\begin{align}
+\nb v(z(t)) f(z(t)) = \nb v \cdot \dd vt
+=\dd vt &= \ga e^{\ga t} \int_t^\iy e^{-\ga s} R(z(s))\,ds - e^{\ga t} e^{-\ga t}R(z(t)).
+\end{align}
+At $t=0$,
+\begin{align}
+\nb v(x)\cdot f(x) &= \ga v(x)-R(x).
+\end{align}
+It's the analogue of the first Bellman equation.
+
+Now let's look at the analogue of a decision process.
+Now $\dd zt = f(z,a)$. The policy is a function of $z$, $a=\pi(z)$. The dynamical system becomes $\dd zt = f(z,\pi(z))$.  (For simplicity we consider a deterministic policy. We could also consider $\pi(a|s)$.)
+
+The $q$-function for the discrete setting is: take one step with $a$, then follow $\pi$. In the continuous setting, how do we define it? Follow $a$ for time $\De t$, and then follow $\pi$. Let
+\begin{align}
+\wt a(t)&= \begin{cases}
+a, &0\le t\le \De t\\
+\pi(z(t)),&t\ge \De t
+\end{cases}\\
+q_\pi(x,z) - v_\pi(x)  &= \De t Q_\pi(x,a) + o(\De t).
+\end{align}
+The difference is the sum of the differences on the two intervals. On the interval $\De t$, the difference is also $\De t$, so the contribution is $O(\De t^2)$, negligible. 
+\begin{align}\int_0^{\De t}e^{-\ga t}\ub{(R_\pi(\wt z_\pi(t)) - R(z_\pi(t)))}{\approx \nb R\cdot (\wt z_\pi -z)}\,dt.
+\end{align}
+(If there is dependence on $a$, there is another term $\De t (R(x,a)-R(x,\pi(x)))$.)
+We need to calculate
+\begin{align}
+\int_{\De t}^\iy e^{-\ga t} 
+(R(\wt z_\pi(t)) - R(z_\pi(t)))\,dt.
+\end{align}
+The initial condition at $\De t$ differs by $\De t (f(x,a) - f(x,\pi(x)))$:
+\begin{align}
+\wt z_\pi - z_\pi &= 
+\De t(f(x,a) - f(x,\pi(x))) 
+(\nb_x z)(t)\\
+\text{where }\dd zt &= f(z,\pi(z))
+%\\
+%\nb_xz(t,x)
+\end{align}
+At the end we have
+\begin{align}
+Q(x,a) &= R(x,a) - R(x,\pi(x))
++ \int_0^\iy (f(x,a) - f(x,\pi(x)))
+\ub{\nb_x z(t)}{\de z}e^{-\ga t} \nb R(z_\pi(t))\,dt.
+\end{align}
+Taking an infinitesimal perturbation of the original path, the difference between the two is the gradient $\nb z_x(t)$.
+``Backpropagation."
+%infsimal perturb of original . 
+%Difference between 2 is gradient
+%
+\begin{align}
+\dd{\de_z}t = \nb_x \dd zt = 
+\nb_x f(z,\pi(z)) &=\nb_z f\de z + \nb_a f\nb_z\pi \de z\\
+&=(\nb_z f +\nb_a f\nb_z\pi)\,\de z
+\end{align}
+...
+\begin{align}
+&=(f(x,a)- f(x,\pi(x))) \nb v(x)\\
+% steep ascent
+&=f(x,a) \nb v - f(x,\pi(x))\nb v.
+\end{align}•
+If you want to maximize something you need to maximize $f(x,a)\nb v$.
+%$\ga$ in $\nb v$
+
+Balance between short and long term.
+
+
+This is the $Q$-function for a fixed policy. Let's derive the $Q$ function for  the optimal policy. ($\dd{z^*}t = f(z^*,\pi^*(z^*))$)
+\begin{align}
+v_*(x) &= \max_\pi v_\pi(x) = \max\int_0^\iy e^{-\ga t} R(z_*(t))\,dt
+\end{align}
+To leading order
+\begin{align}
+%x^* 
+x_a&= x+\De t f(x,a)
+%\pi^*(x)).
+\end{align}
+so 
+\begin{align}
+v_*(x) &= \max_{a(t)} \pa{
+\int_0^{\De t} e^{-\ga t} 
+R(z(t),a(t)) \,dt + \int_{\De t}^\iy e^{-\ga t} R(z(t), a(t))\,dt
+}
+\end{align}
+We have
+\begin{align}
+\int_{\De t}^\iy e^{-\ga t} R(z(t), a(t))\,dt
+&=e^{\ga \De t} \int_0^\iy e^{-\ga t} R(z(t+\De t), a(t+\De t))\,dt
+\end{align}
+so
+\begin{align}
+v_*(x) &= \max_{a(t)} \pa{
+\int_0^{\De t} e^{-\ga t} 
+R(z(t),a(t)) \,dt +e^{\ga \De t} v_*(x_a)
+}
+\end{align}
+Using $z(t) = x+tf(x,a)$, 
+\begin{align}
+\max_a\pa{ \int_0^{\De t} e^{-\ga t} R(z(t),a)\,dt + e^{\ga \De t}v_*(x_a)}
+&=
+\max_a \pa{\De t R(x,a) + (e^{\ga \De t}-1) v_*(x+\De t f(x,a))}\\
+v_*(x+\De t f(x,a)) &=v_*(a)+\De t\nb v_* f(x,a)\\
+\max_a \pa{
+R(x,a) - \ga v_*(x) + \nb v_*(x) f(x,a)
+}&=0\\
+\ga v_*(x) &= \max_a\pa{R(x,a) + \nb v_*(x)f(x,a)}.
+\end{align}
+%This is called $H(\nb v_*)$
+Defining 
+\begin{align}
+H(p,x) :&= \max_x (R(x,a) + p\cdot f(x,a)),
+\end{align}
+we get
+\begin{align}
+\ga v_*(x) &= H(\nb v_*,x).
+\end{align}
+
+Our dynamical system is $\dd zt = f(z,a)$. Imagine it describes the Tokamak where $z$ is applied magnetic field. This is an unstable process. The system is billions of dimensions. The magnetic field---there are many knobs. This really depends on technology but it also depends on your ability to control. If you can't control a million knobs, then having them there doesn't help.
+Just to evaluate the Hamiltonian at one value is already costly.
+This is the kind of problem we should have in mind. Can we handle this kind of problem?
+
+Turbulence: apply polymer to wing to reduce drag. We don't know how to apply control to reduce the drag. Any industrial processing problem is a problem of this type. 
+
+Maote - strong liquor in China. Experience-based. When old masters retire, experience retires with them. They can put a lot of sensors, control moisture. Reward function is also experience-based!
+
+If you want to produce the best-quality steel, manufacturing process---temperature, etc. Silification (?) process, complicated PDE.
+
+Before we couldn't imagine solving these kinds of problems. When numerical algorithms could only handle 3 variables, talking about this is useless.
+
+How do we solve this PDE? We can't put a grid in a billion-dimensional space.
+

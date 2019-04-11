@@ -1,0 +1,259 @@
+\section{Hidden Markov Models}
+%Qingcai
+
+We've learned that filtering is not really machine learning, although we hope ML can help to do filtering. If we want to learn underlying dynamical systems, in the deterministic case, use can use RNN's. We understand very little about training RNN's. What would be a good formulation about RNN? In the stochastic case we learned about the linear problem. 
+
+It seems there is a good theory in the linear case. In the nonlinear case, there is a classical example, HMM.
+
+If you have a general Markov process, and we want to learn the hidden Markov process, what is the mathematical model? 3 examples.
+\begin{itemize}
+\item
+ Discrete Markov chain, discrete time. 
+ \item
+ Continuous-time (jump process), useful for chemical kinetic systems.
+ \item
+Diffusion process.
+\end{itemize}
+%not the time series
+%GMM
+\subsection{EM}
+First I introduce vanilla EM. The setup is as follows. There are hidden variables $x_i$, observations $y_i$, parameters $\te$, and samples $i=1,\ldots, N$. 
+
+The goal is to solve MLE: $\max_\te L(\te)$, where $L(\te) = \sumo iN \log p(y_i; \te)$. 
+
+In EM we need to find $Q(\te, \te')$ such that $L(\te) \ge Q(\te, \te')$ and $L(\te') = Q(\te',\te')$. %find Q for each specific problem
+
+In iteration $k$, let
+\begin{align}
+\te_{k+1}&=\amax_\te Q(\te, \te_k).
+L(\te_k) &=Q(\te_k,\te_k) \le Q(\te_{k+1},\te_k)\le L(\te_{k+1}).
+\end{align}•
+The likelihood function will not decrease. We cannot prove convergence to local/global optima, but in practice, we can often get good solutions.
+
+Consider 
+\begin{align}
+\ga_i(x,\te') &=p(X_i=x|y_i,\te')
+\end{align}
+We can rewrite the likelihood function as
+\begin{align}
+L(\te)&=\sum_i \log p(y_i;\te)
+= \sum_i \log\pa{\sum_x p(X_i=x,y_i;\te)}\\
+&=\sum_i \log \sum_x \ga_i(x;\te') \fc{p(X_i=x,y_i;\te)}{\ga_i(x;\te')}\\
+&\ge \sum_i \sum_x \ga_i(x;\te') \log \fc{p(X_i=x,y_i;\te)}{\ga_i(x;\te')}
+=: Q(\te, \te').
+\end{align}
+Explanation: 
+First we write the probability as a joint probability of $x$ and $y$. For $\ga$ we use $\te'$, but for $p$ we have $\te$. We use Jensen's inequality to take $\ga_i$ out of the log. Note $L(\te')=Q(\te',\te')$ since $\fc{p(X_i=x,y_i;\te')}{\ga_i(x;\te)}=p(y_i;\te')$ independent of $X_i$. 
+% The above equals
+%\begin{align}
+%&=\sum_i \log
+%\end{align}•
+
+EM algorithm:
+\begin{itemize}
+\item
+In the E-step, calculate $\ga_i(x;\te_k) = p(X_i=x|y_i;\te_k)$. 
+\item
+In the M-step, set $\te_{k+1}=\amax_\te Q(\te, \te_k)$.
+\end{itemize}•
+\subsection{Discrete HMM}
+For discrete HMM, %, $N=1$
+denote $X=X_{0:T}$, $y=y_{0:T}$ (in the setting of discrete or continuous time). The MLE problem is $\max_\te L(\te)$,  where
+\begin{align}
+L(\te) &= p(y_{0:T};\te) = 
+\sum_{x_{0:T}}p(x_{0:T}, y_{0:T};\te).
+\end{align}
+(In the continuous case, the probability is on path space and we need the path integral. We first consider the discrete version.)
+\begin{itemize}
+\item
+In the E-step, given $\te_k$, we calculate the posterior $p(x_{0:T}|y_{0:T}; \te_k)$. 
+\item
+In the M-step, given the posterior, update
+\begin{align}
+\te_{k+1}&=\amax_\te\sum_{x_{0:T}} p(x_{0:T}|y_{0:T};\te_k) \log p(x_{0:T}, y_{0:T};\te).
+\end{align}•
+\end{itemize}
+
+For a discrete HMM, let the transition matrix and observation matrix be
+\begin{align}
+A_{ij}&= \Pj(X_{t+1}=j|X_t=i)\\
+B_{ik}&= \Pj(Y_t=k|X_t=i).
+\end{align}
+The parameters are $\te=(A,B)$. We assume the initial distribution $\Pj(X_0=i)$ is known. (We could also have included it in the parameters $\te$.)
+The MLE is $\max_\te L(\te)$, $L(\te)=\log p(y_0,\ldots, y_T;\te) = \sum_x \log p(x_{0:T},y_{0:T};\te)$
+There are $M^{T+1}$ terms, but we can use dynamic programming to solve this problem and avoid the exponential term. 
+%propagation
+
+Let
+\begin{align}
+\al_t(i) &=\Pj(X_t=i, y_{0:t}).
+\end{align}
+Note $\al_0(i) =\Pj(X_0=i) B_{i,y_0}$. Then
+\begin{align}
+\al_t(i) &=\sum_j A_{ji}B_{i,y_t} \al_{t-1}(j)
+\end{align}
+%The backwards probability is
+Let the backwards probability be
+\begin{align}
+\be_t(i) &= \Pj(y_{t+1:T}|X_t=i),
+\end{align}
+note $\be_T(i)=1$. Then
+\begin{align}
+\be_t(i) &= \sum_j \be_{t+1}(j) A_{ij}B_jy_{t+1}.
+\end{align}
+(This is the analogy of Kolmogorov forward/backward equation.) 
+Then 
+\begin{align}
+\Pj(X_t=i, y_{0:T}) &= \al_t(i)\be_t(i)\\
+\rh_t(i)=
+\Pj(X_t=i|y_{0:T}) &= \fc{\al_t(i)\be_t(i)}{\sum_i \al_t(i) \be_t(i)}.
+\end{align}
+($\al_t$ solves a filtering problem, $\rh_t$ solves a smoothing problem.) $\rh_t$ is not exactly what we want to calculate; we want the probability of the whole $X_{0:T}$. Ideally, we the posterior distribution of the whole pass. But $\rh_t(i)$ is almost enough. We need another function,
+\begin{align}
+\xi_t(i,j) &= \Pj(X_t=i,X_{t+1}=j|y_{0:T})=\fc{\al_t(i) A_{ij} B_{j,y_{t+1}} \be_{t+1}(j)}{\sum_i \al_t(i) \be_t(i)}.
+\end{align}
+%1 point and 2 neighboring points
+
+For the M-step, use the Baum-Welch Algorithm. 
+\begin{align}
+\max_\te \sum_{x_{0:T}}
+\Pj(x_{0:T}|y_{0:T}, \te_k) 
+\log\Pj(x_{0:T},y_{0:T}|\te)
+&=
+\max_\te \sum_{x_{0:T}}
+\Pj(x_{0:T}|y_{0:T}; \te_k) 
+\ba{
+\log\Pj(x_{0:T})
++ \sumz t{T-1} \log A_{x_t,x_{t+1}}
++ \sumz t{T} \log B_{x_t,y_t}
+}\\
+&=\max_\te\ba{
+C + \sum_{x_{0:T}}
+\ba{
+\sumz t{T-1} \Pj(x_t,x_{t+1}|y_{0:T};\te_k)
+}\log A_{x_t,x_{t+1}}}\\
+&=\max_\te\ba{
+C+\sum_{i,j}\sumz t{T-1}
+\xi_t(i,j) \log A_{ij}
++ \sum_i \sumz tT \rh_t(i) \log B_{i,y_t}
+}
+\end{align}
+The constraint is $\sum_j A_{ij}=1$, so the optimizer is seem to be
+\begin{align}
+A_{ij}^* &=
+\fc{\sumz t{T-1} \xi_t(i,j)}{\sum_j \sumz t{T-}\xi_t(i,j)}
+=\fc{\sumz t{T-1} \xi_t(i,j)}{\sumz t{T-1} \rh_t(i)}\\
+B_{ik}^* &=\fc{\sumz tT \rh_t(i) \one[y_t=k]}{\sumz tT \rh_t(i)}.
+\end{align}
+Alternate the E and M steps.
+
+%Viterbi algorithm
+%Baum-Welch, no optimal guess of what underlying x
+%different things
+
+(Historical note: Baum was the first collaborator of Jim Simons. Viterbi started Qualcomm. CDMA technology used Viterbi.)
+
+%diffusion process
+
+\subsection{Continuous HMM}
+
+For a continuous HMM,
+\begin{align}
+dX_t &= f(X_t;\te^f)\,dt + \si\,dW_t\\
+dY_t &= h(X_t;\te^h)\,dt + \eta\,dB_t.
+\end{align}
+Suppose $p(X_0)$ is known  and we observe $y_t$, $0\le t\le T$. The MLE is
+\begin{align}
+L(\te) &= \log p(y_{0:T};\te)
+=\log \int p(x_{0:T}, y_{0:T};\te)[Dx_{0:T}]
+\end{align}
+assuming we can do the integral over all paths.
+
+For the E-step, we need to calculate something similar to the $\rh_t$.
+\begin{align}
+\rh_t(x) &=p(X_t=x|\cal F_T^Y)\\
+\cal F_t^Y&= \si(Y_s,s\le t)
+\end{align}
+We need something beyond the Kushner and Zakai equations. The Zakai equation is
+\begin{align}
+\pi_t(x) &= p(X_t=x|\cal F_t^Y)Z_t\\
+Z_t &= \E_Q[M_t|\cal F_t]\\
+\pi_0(x) &=p(X_0=x)\\
+d\pi&=\cL^*\pi_t(x)\,dt + \rc{\eta^2}h(x)\pi(x)\,dY_t.
+\end{align}
+%for noise depending on time: use Girsanov
+To get $\rh_t$, use Zakai smoothing.
+\begin{align}
+\rh_t(x) &=\fc{\pi_t(x)\ka_t(x)}{Z_T}\\
+\ka_t(x)&=\E_Q[M_T/M_t | \cal F_T^Y %V
+\cup [X_t=x]]\\
+M_t&=\exp\pa{
+-\rc{2\eta^2} \int_0^t h^2(X_s)\,ds 
++ \rc{\eta^2}\int_0^t h(X_s)\,dY_s
+}\\
+dQ&=M_T^{-1}\,dP\\
+\ka_T(x)&=1\\
+d\ka_t(x) &=\cL\ka_t(x)\,dt - \rc{\eta^2}h(x)\ka_t(x)\,dY_t.
+\end{align}
+
+For the M-step, discretizing $t=0,\De t,2\De t,\ldots, T$,
+\begin{align}
+&\max_\te\int p(x_{0:T}|y_{0:T},\te_k)\\
+\log p(x_{0:T}, y_{0:T};\te)\\
+p(x_{0:T},y_{0:T}|\te) &= p(x_0)\prod_{t=0}^{T-\De t} p(\De x_t|x_t,\te^f) \prodz tT p(\De y_t|x_t;\te^h)\\
+p(\De x_t|x_t;\te^f) &=\rc{Z_f} \exp\ba{
+-\fc{(\De x_t-f(x_t;\te^f)\De t)^2}{2\si^2 \De t}
+}\\
+p(\De y_t|x_t,\te^h)&=\cdots\\
+\int p(x_{0:T}|y_{0:T},\te_k)
+&=\int p(x_{0:T}|y_{0:T};\te_k)
+\ba{
+\log p(x_0)+\sumz t{T-\De t} \log p(\De x_t|x_t;\te^f) + 
+\sumz tT\log p(\De y_t|x_t;\te^h)
+}\,dx_{0:T}\\
+&=C+\sumz t{T-\De t}\int p(x_t,\De x_t | y_{0:T};\te_k) \log p(\De x_t|x_t;\te^f)\,dx_t\,dx_{t+\De t}\\
+&\quad + \sumz tT \int p(x_t|y_{0:T}; \te_k) \log p(\De y_t|x_t;\te^h)\,dx_t
+\label{e:chmm-m2}
+\end{align}
+%Formally,
+%\begin{align}
+%\sumz t{T-\De t}\int p(x_t,\De x_t | y_{0:T};\te_k) \log p(\De x_t|x_t;\te^f)\,dx_t\,dx_{t+\De t}
+%&=
+%\int_0^T\,dt \int p(x_t,dx_t|y;\te_k)[]
+%\end{align}•
+Taking the limit of $\sumz t{T-\De t}\int p(x_t,\De x_t | y_{0:T};\te_k) \log p(\De x_t|x_t;\te^f)\,dx_t\,dx_{t+\De t}$ gives 
+\begin{align}
+&
+C+\int_{\Om} \dx \int_0^T\rh_t(x;\te_k)
+\ba{f^2(x;\te^f) - 2f(x;\te^f)
+\ddd \tau|_{\tau=0} 
+\E[X_{t+\tau}|\cal F_T^Y \cup [X_t=x];\te_k]}\,dt\\
+&+\int_0^T\dx \int_0^T \rh_t(x,\te_k) [h^2(x;\te^h) \,dt - 2h (x;\te^j) \,dY_t]\,dt
+\end{align}
+(Note the exponent of $p(\De x_t|x_t;\te^f)$ becomes $\pa{\dd xt}^2 - 2f\,dx + f^2\,dt$.)
+Also
+\begin{align}
+\ddd \tau|_{\tau=0} 
+\E[X_{t+\tau}|\cal F_T^Y \cup [X_t=x];\te_k]
+&= f(x;\te_k)+ \fc{2x\cL\ka_t(x)+\si^2 \pl_x\ka_t(x)}{\ka_t(x)}
+- \fc{xh^2(x)}{\eta(x)^2}
+\end{align}
+\subsection{Continuous time jump process}
+We assume $X$ is a a jump process.
+
+%For the continuous time jump process, 
+The E step is the same.
+For the M step we still get~\eqref{e:chmm-m2}.
+%jump only happens for x.
+We get
+\begin{align}
+&
+p(x_t,x_{t+\De t}|y,Q_k) \log p(\ub{x_{t+\De t}}j|\ub{x_t}i,Q)\,dx_t\,dx_{t+\De t}\\
+Q_{ij}^*
+&=\fc{\int_0^T 
+\ddd \tau|_{\tau=0} 
+p(x_t=i, x_{t+\tau}=j|y;Q_k)\,dt}{\int_0^T\rh_t(i)\,dt}
+\end{align}
+
+%we covered all there is to cover
+%What happens when $\si, \eta\to 0$?

@@ -1,0 +1,65 @@
+\def\filepath{templates}
+%\def\filepath{C:/Users/holden-lee/Dropbox/Math/templates}
+
+\input{\filepath/packages_book.tex}
+\input{\filepath/theorems_with_boxes.tex}
+\input{\filepath/macros.tex}
+\input{\filepath/formatting.tex}
+\input{\filepath/other.tex}
+\input{\filepath/theorem_num.tex}
+
+%\newcommand{\Bin}{\operatorname{Bin}}
+\def\name{Machine learning for dynamical systems}
+
+
+\pagestyle{fancy}
+%\addtolength{\headwidth}{\marginparsep} %these change header-rule width
+%\addtolength{\headwidth}{\marginparwidth}
+\lhead{APC535}
+\chead{} 
+\rhead{Machine learning for dynamical systems} 
+\lfoot{} 
+\cfoot{\thepage} 
+\rfoot{} % !! Remember to change the problem set number
+\renewcommand{\headrulewidth}{.3pt} 
+%\renewcommand{\footrulewidth}{.3pt}
+\setlength\voffset{0in}
+%\setlength\textheight{648pt}
+
+\begin{document}
+%\input{\filepath/titlepage.tex}
+%\maketitle
+\title{Machine learning for dynamical systems}
+\author{Seminar led by Weinan E\\ Scribe: Holden Lee}
+\maketitle
+
+
+\tableofcontents
+
+%\startcontents
+%\printcontents{ }{-1}{}
+
+%Princeton, 
+
+%\setcounter{chapter}{1}
+
+\input{2-21.tex}
+\input{2-28.tex}
+\input{2019-3-7.tex}
+\input{3-21.tex}
+\input{3-28.tex}
+\input{4-4.tex}
+\input{4-11.tex}
+%INSERT_HERE
+
+
+
+%\appendix
+%\input{distribution_chapters/a.tex}
+
+%\bibliographystyle{plain}
+%\bibliography{\filepath/refs}
+
+\printnomenclature
+\printindex
+\end{document}

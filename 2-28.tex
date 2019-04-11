@@ -1,0 +1,204 @@
+\section{2019-2-28 Nonlinear filtering}
+
+Outline:
+\begin{itemize}
+\item
+Zakai and Kushner equiations
+\item
+Girsanov theory
+\item
+Derivation
+\item
+Particle filtering
+\item
+Deep learning to solve Zakai
+\end{itemize}
+
+\subsection{Zakai and Kushner equation}
+
+The hidden state evolves as 
+\begin{align}
+dX_t &= f_t(X_t)\,dt +\si \, dW_t.
+\end{align}
+The observation is 
+\begin{align}
+dY_t &= h_t(X_t)\,dt + \eta dB_t.
+\end{align}
+Here, $B_t$, $W_t$ are independent Brownian motion. The goal is to calculate the posterior
+\begin{align}
+p_t(x) &= p(X_t=x|Y_s=y_s,0\le s\le t).
+\end{align}
+The first term is from Fokker-Planck, the second term is variance reduction from the observations.  
+%The amount variance is reduced is proportional to
+%observe some linear combination, cut that direction.
+%effect of second term: 
+%observation: variance reduction scheme
+%density within in subspace, small variance outside?
+For the Kalman filter, covariance matrix is subtracted by a positive definite matrix. The same thing is going on here.
+%cov of this p_t is smaller than cov of FK p_t
+
+The Kushner equation solves for the posterior density.
+\begin{align}
+dp_t(x) &=\cal L^* [p_t]\,dt + p_t(x)[h_t(x)-\E h_t]^\top  \eta^{-\top}\eta^{-1}[dy_t-\E h_t].
+\end{align}
+Here %$\cal L^*$ is the adjoint of
+\begin{align}
+\cal L &= f \pdd x + \rc 2(\si\si^\top) \pdt{}{x}\\
+\cal L^*[p_t] &= -\nb \cdot [f_t\cdot p_t]+\rc 2 (\si\si^\top) \cdot \pl^2 p_t\\
+dg(x_t)&=\cal L[g]\,dt\\
+\E_t h_t &=\int h_t(x)p_t(x)\dx
+\end{align}
+We have to update both; this is numerically not easy. We introduce an unnormalized verision that is easier.
+
+Zakai gives an unnormalized density,
+\begin{align}
+d\wt p_t(x) &=\cal L^* [\wt p_t] \,dt + \wt p_t(x) h_t^\top(x)\eta^{-\top}\eta^{-1}\,dy_t.
+\end{align}
+To say it is an unnormalized density means
+\begin{align}
+\wt p_t(x) &= \al(t)p_t(x)\\
+\int \wt p_t(x) &\ne 1\text{ in general.}
+\end{align}
+\begin{rem}
+Assume $Y_t/\eta$ is Brownian motion; let $Q$ be its law. Let $\dd QP=M_T^{-1}$. Define 
+\begin{align}
+\ph_t[g]:&=\E_Q[g(X_t)M_t|\cal F_t^Y]\\
+\psi_t[g]:&= \E_P[g(X_t)|\cal F_t^Y] = \fc{\ph_t[g]}{\ph_t[1]}.
+\end{align}
+$\al(t):=\ph_t[1]$. 
+%Note $|\E_Q[M_t|\cal F_T^Y]|=1$. So it won't be too large or small, more like a fluctuation.
+\end{rem}
+
+The forward form of the Kushner equation is
+\begin{align}
+\psi_t[g]&=\E[g(X_t)|\cal F_t^Y]\\
+d\psi_t[g] &=\psi_t[\cal L g]\,dt 
++ \fc{\psi_t[gh]-\psi_t[g]\psi_t[h]}{\eta^2} (dY_t-\psi_t[h]\,dt)
+\end{align}
+To show the variance is smaller than in the Fokker-Planck equation we can take $g(x)=x^2$.
+
+\begin{rem}
+If there is no noise, and $f$ is unknown, this is a ML problem (cf. RNN). For Kalman filtering if we know the model, it's not ML; if we don't know the model, we have to do system identification, this is ML. 
+
+Suppose $f_t,h_t=0$, and we only have noise. It's just Brownian motion. If we have observations up to time $t$, that means the system picked a particular choice of Brownian motion. We don't know the particular path. If we have observations, we know something about the path. The variance is smaller, we solve a filtering problem. 
+
+Filtering by itself is variance reduction (through observations). Estimation is machine learning.
+\end{rem}
+
+%instead of deriv, spend time understanding what obs means
+\subsection{Girsanov theory}
+We use a change of measure to make the integration easier.
+Let's consider a simple example first.
+\begin{ex}
+Let $(\Om,\cal F,P)$ be a probability space and $\xi\sim N(0,1)$ under $P$. For $a\in \R$, then $\xi'=\xi+a\sim N(a,1)$ under $P$. We want to find $Q$ such that $\xi'\sim N(0,1)$ under $Q$. 
+
+For any $A\in B(\R)$, 
+\begin{align}
+P(\xi'\in A) &=\int_A \rc{\sqrt{2\pi}} e^{-\rc 2(x-a)^2}\dx\\
+Q(\xi'\in A) &=\int_A \rc{\sqrt{2\pi}}e^{-\rc 2x^2}\dx\\
+\dd QP :&= e^{-\rc 2 \xi^{\prime2} +\rc 2(\xi^{\prime2}-a)^2} = e^{-a\xi' + \rc 2a^2} = e^{-a\xi-\rc 2a^2}.
+\end{align}
+Then
+\begin{align}
+\E_Q[f(\xi')]&=\E_Q [f(\xi+a)] = \E_p[f(\xi+a)e^{-a\xi -\rc 2a^2}]=\E_p [f(\xi)].
+\end{align}
+\end{ex}
+We can also do the change-of-variable for a random process, using Girsanov. We will use it to remove drift $h(X_t)$,  and make $Y_t$ Brownian motion.
+\begin{thm}[Girsanov] Let $(\Om, \cal F, \{\cal F_i\}, P)$ be a probability space with filtration, $B$ be $n$-dimensional Brownian motion, $X\in \cal H_{\text{loc}}^2[0,T]$. Define 
+\begin{align}
+\dd QP &= M_T:= \exp\pa{-\int_0^T X_s\,dB_s - \rc 2 \int_0^T \ve{X_s}^2\,ds}\\
+B_t'&=B_t+\int_0^t X_s\,ds.
+\end{align}
+%stoch process version of change of measure
+%match up with -a\xi and -\rc 2 a^2
+If $\E_PM_T=1$, then $(B_t')_{t\le T}$ is Brownian motion under $Q$. Also, $M_t$ is a $P$-martingale. 
+\end{thm}
+\begin{rem}[Novikov]
+If $\E\exp\pa{\rc 2\int X_s^2\,ds}<\iy$, then $\E M_T<1$.
+\end{rem}
+
+%hidden markov process
+%viterbi wrong alg. baum-welch relies on viterbi?
+
+\subsection{Derivation}
+
+%change measure so $Y$ is BM; then independent, so easier.
+Omitted.
+
+\subsection{Particle filtering}
+
+Particle filtering is Monte Carlo sampling with modifications based on observations.
+
+We know $p(X_0)$, $p(X_t|X_{t-1})$, $p(Y_t|X_t)$, and have observations $Y_{1:T}=y_{1:T}$.
+The goal is to sample $\xi_t\sim p(X_t|Y_1,\ldots, Y_t)$. %=:\pi_t$. 
+
+The algorithm is as follows.
+\begin{alg}[Particle filtering]
+\begin{itemize}
+\item
+Let $\pi_0=p(X_0)$. 
+\item
+For $t=1,\ldots, T$, do:
+\begin{itemize}
+\item
+(Resampling)
+Sample $\xi_{t-1}^{(i)} \sim \pi_{t-1}$, iid, for $i=1,\ldots, N$. 
+\item
+Sample $\xi_{t-\rc 2}^{(i)}\sim p(X_t|X_{t-1}=\xi_{t-1}^{(i)})$ (from the model). %predict prior
+\item
+Compute
+\begin{align}
+w_t^{(i)} &= \fc{p(Y_t=y_t|x_t=\xi_{t-\rc 2}^{(i)})}{\sumo jN p(Y_t=y_t|X_t=\xi_{t-\rc 2}^{(j)})}
+\end{align}
+\item
+Let $\pi_t = \sumo iN w_t^{(i)} \de_{\xi_{t-\rc 2}}^{(i)}$.
+\end{itemize}•
+\end{itemize}
+\end{alg}
+When sampling $\pi_{t-1}$, not all points will be sampled and some will be sampled more than once. 
+%some not go on, some will be sampled >once
+
+The rate is $\rc{\sqrt N}$, but the constant depends on the dimension and increases exponentially. If we make some assumptions on the $X$, e.g. sparsity of interactions (and particles far away are not correlated), %then we can sample based on the dimensions with higher correlation
+we can do better.
+
+(Ramon van Handel's paper: can we overcome curse of dimensionality?Conclusion, not so clear.)
+
+%define effective size. long distance not correlated
+\subsection{Deep learning for solving Zakai}
+
+Numerical method to solve Zakai or Kushner equations directly.
+%use deep NN to approx first order derivative
+
+Zakai: $d\wt p_t(x) = \cal L^*[\wt p_t]\,dt + \wt p_t(x) \fc{h_t(x)}{\eta^2}\,dy_t$.
+
+The method can help us calculate $\int g(x) p_t(x)\dx$. %not $p_t(x^*)$ because that would require taking $g(x)=\de_{x^*}$.
+%econ: state variables.
+%math well defined. numerically?
+
+%Given $U_T$
+Given $U_T$, generate a backwards path
+\begin{align}
+U_t&=U_{t+1}-f_t(U_{t+1})\De t + \si \De W_t\\
+V_t&=p_t(U_t)\\
+V_{t+1}-V_t&=p_{t+1}(U_{t+1})
+-p_t(U_{t+1}) + p_t(U_{t+1}) - p_t(U_t)\\
+%$2p \De u_t + \rc 2 \pl^2 p(\De u_t)^2$
+&=[-\nb \cdot (f_t(U_{t+1})p_t(U_{t+1})) + \rc2 \si\si^\top \pl^2p_t(U_{t+1})]\,dt\\
+&\quad +p_t(U_{t+1}) \fc{h_t(U_{t+1})}{\eta^2}\De Y_t + o(\De t)\\
+&=-V_{t+1}\nb \cdot f_t(U_{t+1}) - \pl p_t(U_{t+1})\cdot \si\De t
++V_{t+1}h_t^\top (U_{t+1}) \eta^{-\top} \eta^{-1} [\De Y_t - h_t(U_{t+1})\De t] + o(\De t)
+\end{align}
+%Updates of $V$ only depend on 
+The only unknown term is $-\pl p_t(U_{t+1})$.
+%Let it be $\ph_t(U_{t+1})$. 
+We can calculate $V_t=P_t(U_t)$ %\psi(U_T)
+ from $T$ to 0. We know $V_0=p_0(U_0)$. We minimize the loss function,
+ \begin{align}
+\min_{\ph,\psi} \sum_{\text{samples }U_T,\De W_t} |V_0-p_0(U_0)|^2.
+\end{align}
+%Dropping the constraints is better. We cannot ensure $\ph_t(U_{t+1})=\pl p_t(U_{t+1})$. 
+We tested it on the Kalman filter in 2 dimensions.
+%replace $\psi$ by $V_T$, don't have $U_T$.
+%not good enough
+%preferable to solve Zakai instead of Kushner.
+%calc $\pl p_t(U_{t+1})$ numerically?
